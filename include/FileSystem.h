@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <utility>
 
 struct FileInfo
 {
@@ -24,11 +25,11 @@ public:
     static bool removeFile(const std::string &path);
     static bool removeDir(const std::string &path);
     static bool isEmptyDir(const std::string &path);
+    static bool copyFile(const std::string &src, const std::string &dst, bool overwrite = false);
+    static bool move(const std::string &src, const std::string &dst, bool overwrite = false);
+    static unsigned long long calcDirSize(const std::string &path);
+    static void search(const std::string &path, const std::string &keyword, std::vector<std::pair<std::string,bool>> &results);
     // static FileInfo getInfo(const std::string &path);
-    // static bool copyFile(const std::string &src, const std::string &dst);
-    // static bool move(const std::string &src, const std::string &dst);
-    // static long long calcDirSize(const std::string &path);
-    // static void search(const std::string &path, const std::string &keyword, std::vector<std::string> &results);
 };
 
 #endif
