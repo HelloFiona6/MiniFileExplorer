@@ -5,6 +5,10 @@
 #include <iostream>
 #include <iomanip>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <ctime>
+#include <sstream>
+#include <limits.h>
 
 // ----------------- Command Implementations -----------------
 
@@ -202,6 +206,59 @@ static void cmd_rmdir(const std::vector<std::string> &args)
         std::cout << "Failed to remove directory: " << dir << "\n";
 }
 
+static void cmd_stat(const std::vector<std::string> &args)
+{
+    if (args.size() < 2)
+    {
+        std::cout << "Missingtarget: Please enter'stat [name]'" << std::endl;
+        return;
+    }
+
+    const std::string path = args[1];
+
+    if (!FileSystem::exists(path))
+    {
+        std::cout << "Targetnotfound:" << path << std::endl;
+        return;
+    }
+
+    struct stat st{};
+    if (::stat(path.c_str(), &st) != 0)
+    {
+        perror("stat");
+        return;
+    }
+
+    bool is_dir = S_ISDIR(st.st_mode);
+    std::string type = is_dir ? "Folder" : "File";
+
+    // Resolve absolute path if possible
+    char resolved[PATH_MAX];
+    std::string fullpath;
+    if (::realpath(path.c_str(), resolved))
+        fullpath = resolved;
+    else
+        fullpath = path;
+
+    std::string size = is_dir ? "-" : std::to_string(static_cast<long long>(st.st_size));
+
+    auto fmt = [](time_t t) -> std::string {
+        std::tm tm{};
+        if (std::tm* p = std::localtime(&t)) tm = *p;
+        std::ostringstream oss;
+        oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+        return oss.str();
+    };
+
+    std::cout << "=== File/Directory Information ===" << std::endl;
+    std::cout << "Type: " << type << std::endl;
+    std::cout << "Path: " << fullpath << std::endl;
+    std::cout << "Size: " << size << std::endl;
+    std::cout << "Creation Time: " << fmt(st.st_ctime) << std::endl;
+    std::cout << "Modification Time: " << fmt(st.st_mtime) << std::endl;
+    std::cout << "Access Time: " << fmt(st.st_atime) << std::endl;
+}
+
 void handleCommand(MiniFileExplorer &app, const std::vector<std::string> &args)
 {
     if (args.empty())
@@ -225,6 +282,8 @@ void handleCommand(MiniFileExplorer &app, const std::vector<std::string> &args)
         cmd_rm(args);
     else if (cmd == "rmdir")
         cmd_rmdir(args);
+    else if (cmd == "stat")
+        cmd_stat(args);
     else
         std::cout << "Unknown command: " << cmd << "\n";
 }
