@@ -85,13 +85,24 @@ static void cmd_ls(MiniFileExplorer &app)
     for (auto &f : files)
         nameWidth = std::max(nameWidth, f.name.size());
 
+    // Print header
+    std::cout << std::left << std::setw(nameWidth + 2) << "Name"
+              << std::setw(8) << "Type"
+              << std::setw(10) << "Size(B)"
+              << "Modify Time" << "\n";
+
+    // Separator
+    std::cout << std::string(nameWidth + 2 + 8 + 10 + 20, '-') << "\n";
+
     for (auto &f : files)
     {
         std::string name = f.name + (f.isDir ? "/" : "");
+        std::string type = f.isDir ? "Dir" : "File";
+        std::string size = f.isDir ? "-" : std::to_string(f.size);
 
         std::cout << std::left << std::setw(nameWidth + 2) << name
-                  << std::setw(10) << (f.isDir ? "-" : std::to_string(f.size))
-                  << std::setw(6) << (f.isDir ? "Dir" : "File")
+                  << std::setw(8) << type
+                  << std::setw(10) << size
                   << f.mtime << "\n";
     }
 }
