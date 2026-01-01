@@ -12,6 +12,7 @@
 #include <functional>
 #include <filesystem>
 #include <system_error>
+#include <algorithm>
 
 // ----------------- Command Implementations -----------------
 
@@ -79,7 +80,23 @@ static void cmd_cd(MiniFileExplorer &app, const std::vector<std::string> &args)
     app.setCurrentDir(buf);
 }
 
-static void cmd_ls(MiniFileExplorer &app)
+static unsigned long long calcDirSize(const std::string &path) {
+    namespace fs = std::filesystem;
+    unsigned long long total = 0;
+    try {
+        for (auto it = fs::recursive_directory_iterator(path, fs::directory_options::skip_permission_denied);
+             it != fs::recursive_directory_iterator(); ++it) {
+            try {
+                if (fs::is_regular_file(it->path())) {
+                    total += fs::file_size(it->path());
+                }
+            } catch (...) {}
+        }
+    } catch (...) {}
+    return total;
+}
+
+static void cmd_ls(MiniFileExplorer &app, const std::vector<std::string> &args)
 {
     /*
     TODO:
@@ -88,9 +105,53 @@ static void cmd_ls(MiniFileExplorer &app)
     */
     auto files = FileSystem::listDir(app.getCurrentDir());
 
+    // determine mode: normal / -s (size) / -t (time)
+    bool sortSize = false, sortTime = false;
+    if (args.size() > 1) {
+        if (args[1] == "-s") sortSize = true;
+        else if (args[1] == "-t") sortTime = true;
+    }
+
     size_t nameWidth = 0;
     for (auto &f : files)
         nameWidth = std::max(nameWidth, f.name.size());
+
+    // Prepare auxiliary data for sorting
+    struct Row { FileInfo info; unsigned long long compSize; std::time_t mtime_epoch; };
+    std::vector<Row> rows;
+    rows.reserve(files.size());
+    for (auto &f : files) {
+        Row r; r.info = f; r.compSize = 0; r.mtime_epoch = 0;
+        std::string entryPath = app.getCurrentDir() + "/" + f.name;
+        if (sortSize) {
+            if (f.isDir) {
+                r.compSize = calcDirSize(entryPath);
+            } else {
+                r.compSize = (f.size < 0) ? 0 : static_cast<unsigned long long>(f.size);
+            }
+        }
+        if (sortTime) {
+            struct stat st{};
+            if (::stat(entryPath.c_str(), &st) == 0) r.mtime_epoch = st.st_mtime;
+        }
+        rows.push_back(std::move(r));
+    }
+
+    if (sortSize) {
+        std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b){
+            // empty directories go last
+            bool aEmptyDir = a.info.isDir && a.compSize == 0;
+            bool bEmptyDir = b.info.isDir && b.compSize == 0;
+            if (aEmptyDir != bEmptyDir) return !aEmptyDir; // non-empty (or file) first
+            if (a.compSize != b.compSize) return a.compSize > b.compSize; // desc
+            return a.info.name < b.info.name;
+        });
+    } else if (sortTime) {
+        std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b){
+            if (a.mtime_epoch != b.mtime_epoch) return a.mtime_epoch > b.mtime_epoch; // desc
+            return a.info.name < b.info.name;
+        });
+    }
 
     // Print header
     std::cout << std::left << std::setw(nameWidth + 2) << "Name"
@@ -101,16 +162,40 @@ static void cmd_ls(MiniFileExplorer &app)
     // Separator
     std::cout << std::string(nameWidth + 2 + 8 + 10 + 20, '-') << "\n";
 
-    for (auto &f : files)
-    {
-        std::string name = f.name + (f.isDir ? "/" : "");
-        std::string type = f.isDir ? "Dir" : "File";
-        std::string size = f.isDir ? "-" : std::to_string(f.size);
+    if (sortSize || sortTime) {
+        for (auto &r : rows) {
+            auto &f = r.info;
+            std::string name = f.name + (f.isDir ? "/" : "");
+            std::string type = f.isDir ? "Dir" : "File";
+            std::string size = "-";
+            if (sortSize) {
+                if (f.isDir) {
+                    if (r.compSize == 0) size = "-";
+                    else size = std::to_string(r.compSize);
+                } else {
+                    size = std::to_string(f.size);
+                }
+            } else {
+                size = f.isDir ? "-" : std::to_string(f.size);
+            }
 
-        std::cout << std::left << std::setw(nameWidth + 2) << name
-                  << std::setw(8) << type
-                  << std::setw(10) << size
-                  << f.mtime << "\n";
+            std::cout << std::left << std::setw(nameWidth + 2) << name
+                      << std::setw(8) << type
+                      << std::setw(10) << size
+                      << f.mtime << "\n";
+        }
+    } else {
+        for (auto &f : files)
+        {
+            std::string name = f.name + (f.isDir ? "/" : "");
+            std::string type = f.isDir ? "Dir" : "File";
+            std::string size = f.isDir ? "-" : std::to_string(f.size);
+
+            std::cout << std::left << std::setw(nameWidth + 2) << name
+                      << std::setw(8) << type
+                      << std::setw(10) << size
+                      << f.mtime << "\n";
+        }
     }
 }
 
@@ -498,7 +583,7 @@ void handleCommand(MiniFileExplorer &app, const std::vector<std::string> &args)
     if (cmd == "help")
         cmd_help();
     else if (cmd == "ls")
-        cmd_ls(app);
+        cmd_ls(app, args);
     else if (cmd == "cd")
         cmd_cd(app, args);
     else if (cmd == "exit")
