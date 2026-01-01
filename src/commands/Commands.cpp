@@ -10,43 +10,27 @@
 
 static void cmd_help()
 {
-    std::cout << "\nMiniFileExplorer - Interactive File Management Shell\n\n"
-                 "Usage:\n"
-                 "  <command> [arguments]\n\n"
-                 "Core Commands:\n"
-                 "  ls\n"
-                 "      List contents of current directory.\n\n"
-                 "  cd <path>\n"
-                 "      Change current directory.\n"
-                 "      Example: cd ../docs\n\n"
-                 "  touch <filename>\n"
-                 "      Create an empty file.\n\n"
-                 "  mkdir <dirname>\n"
-                 "      Create a new directory.\n\n"
-                 "  rm <filename>\n"
-                 "      Delete a file (with confirmation).\n\n"
-                 "  rmdir <dirname>\n"
-                 "      Delete an empty directory.\n\n"
-                 "  stat <name>\n"
-                 "      Show detailed information of a file or directory.\n\n"
-                 "Advanced Commands:\n"
-                 "  search <keyword>\n"
-                 "      Search files and directories recursively.\n\n"
-                 "  cp <src> <dst>\n"
-                 "      Copy file from src to dst.\n\n"
-                 "  mv <src> <dst>\n"
-                 "      Move or rename file or directory.\n\n"
-                 "  du <dirname>\n"
-                 "      Show total size of directory.\n\n"
-                 "  ls -s\n"
-                 "      List files sorted by size.\n\n"
-                 "  ls -t\n"
-                 "      List files sorted by modified time.\n\n"
-                 "System:\n"
-                 "  help\n"
-                 "      Show this help message.\n\n"
-                 "  exit\n"
-                 "      Exit MiniFileExplorer.\n\n";
+    std::cout << "\n=== MiniFileExplorer Commands ===\n" << std::endl;
+    std::cout << "Core Commands:" << std::endl;
+    std::cout << "  ls [options]       - List contents of current directory" << std::endl;
+    std::cout << "                     - Options: -s (sort by size), -t (sort by time)" << std::endl;
+    std::cout << "  cd [path]          - Change current directory (e.g., cd ../docs)" << std::endl;
+    std::cout << "  touch [filename]   - Create an empty file" << std::endl;
+    std::cout << "  mkdir [dirname]    - Create a new directory" << std::endl;
+    std::cout << "  rm [filename]      - Delete a file (with confirmation)" << std::endl;
+    std::cout << "  rmdir [dirname]    - Delete an empty directory" << std::endl;
+    std::cout << "  stat [name]        - Show detailed information of a file or directory" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Advanced Commands:" << std::endl;
+    std::cout << "  search [keyword]   - Search files and directories recursively" << std::endl;
+    std::cout << "  cp [src] [dst]     - Copy file from src to dst" << std::endl;
+    std::cout << "  mv [src] [dst]     - Move or rename file or directory" << std::endl;
+    std::cout << "  du [dirname]       - Show total size of directory" << std::endl;
+    std::cout << std::endl;
+    std::cout << "System:" << std::endl;
+    std::cout << "  help               - Show this help message" << std::endl;
+    std::cout << "  exit               - Exit MiniFileExplorer" << std::endl;
+    std::cout << std::endl;
 }
 
 static void cmd_exit()
