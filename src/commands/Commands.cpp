@@ -10,6 +10,8 @@
 #include <sstream>
 #include <limits.h>
 #include <functional>
+#include <filesystem>
+#include <system_error>
 
 // ----------------- Command Implementations -----------------
 
@@ -148,31 +150,39 @@ static void cmd_mkdir(const std::vector<std::string> &args)
         std::cout << "Failed to create directory: " << args[1] << "\n";
 }
 
-static void cmd_rm(const std::vector<std::string> &args)
+static void cmd_rm(MiniFileExplorer &app, const std::vector<std::string> &args)
 {
     if (args.size() < 2)
     {
         std::cout << "Usage: rm <filename>\n";
         return;
     }
+    namespace fs = std::filesystem;
 
-    std::string file = args[1];
+    fs::path inPath(args[1]);
+    fs::path absPath;
+    if (inPath.is_absolute()) {
+        absPath = inPath;
+    } else {
+        absPath = fs::path(app.getCurrentDir()) / inPath;
+    }
+    std::string absStr = absPath.string();
 
-    if (!FileSystem::exists(file))
+    if (!FileSystem::exists(absStr))
     {
-        std::cout << "File not found: " << file << "\n";
+        std::cout << "File not found: " << args[1] << "\n";
         return;
     }
 
-    std::cout << "Are you sure to delete " << file << "? (y/n): ";
+    std::cout << "Are you sure to delete " << args[1] << "? (y/n): ";
     std::string ans;
     std::getline(std::cin, ans);
 
     if (ans != "y")
         return;
 
-    if (!FileSystem::removeFile(file))
-        std::cout << "Failed to delete file: " << file << "\n";
+    if (!FileSystem::removeFile(absStr))
+        std::cout << "Failed to delete file: " << args[1] << "\n";
 }
 
 static void cmd_rmdir(const std::vector<std::string> &args)
@@ -318,6 +328,117 @@ static void cmd_search(MiniFileExplorer &app, const std::vector<std::string> &ar
     }
 }
 
+
+static void cmd_cp(const std::vector<std::string> &args)
+{
+    if (args.size() < 3) {
+        std::cout << "Usage: cp [src] [dst]" << std::endl;
+        return;
+    }
+
+    namespace fs = std::filesystem;
+    fs::path src(args[1]);
+    fs::path dst(args[2]);
+
+    if (!fs::exists(src)) {
+        std::cout << "Source not found" << std::endl;
+        return;
+    }
+
+    if (!fs::is_regular_file(src)) {
+        std::cout << "Source not found" << std::endl;
+        return;
+    }
+
+    try {
+        if (fs::exists(dst) && fs::is_directory(dst)) {
+            dst /= src.filename();
+        } else if (!dst.has_parent_path()) {
+            // relative in current dir is fine
+        } else if (!fs::exists(dst.parent_path())) {
+            std::cout << "Invalid target path" << std::endl;
+            return;
+        }
+
+        if (fs::exists(dst)) {
+            std::cout << "File exists in target: Overwrite? (y/n)" << std::endl;
+            std::string ans;
+            std::getline(std::cin, ans);
+            if (ans != "y") return;
+            fs::copy_file(src, dst, fs::copy_options::overwrite_existing);
+        } else {
+            fs::copy_file(src, dst);
+        }
+    } catch (const std::exception &e) {
+        std::cout << "Failed to copy: " << e.what() << std::endl;
+    }
+}
+
+static void cmd_mv(const std::vector<std::string> &args, MiniFileExplorer &app)
+{
+    if (args.size() < 3) {
+        std::cout << "Usage: mv [src] [dst]" << std::endl;
+        return;
+    }
+
+    namespace fs = std::filesystem;
+    fs::path src(args[1]);
+    fs::path dst(args[2]);
+
+    if (!fs::exists(src)) {
+        std::cout << "Source not found" << std::endl;
+        return;
+    }
+
+    try {
+        if (fs::exists(dst) && fs::is_directory(dst)) {
+            dst /= src.filename();
+        } else if (dst.has_parent_path() && !fs::exists(dst.parent_path())) {
+            std::cout << "Invalid target path" << std::endl;
+            return;
+        }
+
+        if (fs::exists(dst)) {
+            std::cout << "File exists in target: Overwrite? (y/n)" << std::endl;
+            std::string ans;
+            std::getline(std::cin, ans);
+            if (ans != "y") return;
+            if (fs::is_directory(dst)) fs::remove_all(dst);
+            else fs::remove(dst);
+        }
+
+        // Try rename first
+        std::error_code ec;
+        fs::rename(src, dst, ec);
+        if (ec) {
+            // fallback: copy then remove
+            if (fs::is_regular_file(src)) {
+                fs::copy_file(src, dst, fs::copy_options::overwrite_existing);
+                fs::remove(src);
+            } else if (fs::is_directory(src)) {
+                fs::copy(src, dst, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+                fs::remove_all(src);
+            }
+        }
+
+        // If moved a directory that is current dir, update app currentDir
+        try {
+            char cwd[PATH_MAX];
+            getcwd(cwd, sizeof(cwd));
+            std::string cur = cwd;
+            if (cur.find(src.string()) == 0) {
+                // if we moved the current directory, update
+                char newcwd[PATH_MAX];
+                if (::realpath(dst.string().c_str(), newcwd))
+                    app.setCurrentDir(newcwd);
+            }
+        } catch(...) {}
+
+    } catch (const std::exception &e) {
+        std::cout << "Failed to move: " << e.what() << std::endl;
+    }
+}
+
 void handleCommand(MiniFileExplorer &app, const std::vector<std::string> &args)
 {
     if (args.empty())
@@ -338,9 +459,13 @@ void handleCommand(MiniFileExplorer &app, const std::vector<std::string> &args)
     else if (cmd == "mkdir")
         cmd_mkdir(args);
     else if (cmd == "rm")
-        cmd_rm(args);
+        cmd_rm(app, args);
     else if (cmd == "rmdir")
         cmd_rmdir(args);
+    else if (cmd == "cp")
+        cmd_cp(args);
+    else if (cmd == "mv")
+        cmd_mv(args, app);
     else if (cmd == "stat")
         cmd_stat(args);
     else if (cmd == "search")
