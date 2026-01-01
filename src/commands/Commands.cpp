@@ -253,7 +253,7 @@ static void cmd_stat(const std::vector<std::string> &args)
     std::cout << "=== File/Directory Information ===" << std::endl;
     std::cout << "Type: " << type << std::endl;
     std::cout << "Path: " << fullpath << std::endl;
-    std::cout << "Size: " << size << std::endl;
+    std::cout << "Size(B): " << size << std::endl;
     std::cout << "Creation Time: " << fmt(st.st_ctime) << std::endl;
     std::cout << "Modification Time: " << fmt(st.st_mtime) << std::endl;
     std::cout << "Access Time: " << fmt(st.st_atime) << std::endl;
