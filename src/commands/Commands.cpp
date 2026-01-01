@@ -439,6 +439,55 @@ static void cmd_mv(const std::vector<std::string> &args, MiniFileExplorer &app)
     }
 }
 
+static void cmd_du(MiniFileExplorer &app, const std::vector<std::string> &args)
+{
+    if (args.size() < 2) {
+        std::cout << "Usage: du [dirname]" << std::endl;
+        return;
+    }
+
+    namespace fs = std::filesystem;
+    fs::path inPath(args[1]);
+    fs::path dirPath;
+    if (inPath.is_absolute()) dirPath = inPath;
+    else dirPath = fs::path(app.getCurrentDir()) / inPath;
+
+    if (!fs::exists(dirPath) || !fs::is_directory(dirPath)) {
+        std::cout << "Invalid target path" << std::endl;
+        return;
+    }
+
+    unsigned long long total = 0;
+    try {
+        for (auto it = fs::recursive_directory_iterator(dirPath, fs::directory_options::skip_permission_denied);
+             it != fs::recursive_directory_iterator(); ++it) {
+            try {
+                if (fs::is_regular_file(it->path())) {
+                    total += fs::file_size(it->path());
+                }
+            } catch (...) {
+                // ignore files we can't stat
+            }
+        }
+    } catch (...) {
+        std::cout << "Failed to calculate directory size" << std::endl;
+        return;
+    }
+
+    std::string out;
+    const unsigned long long MB = 1024ULL * 1024ULL;
+    const unsigned long long KB = 1024ULL;
+    if (total >= MB) {
+        unsigned long long val = (total + MB/2) / MB; // rounded
+        out = std::to_string(val) + "MB";
+    } else {
+        unsigned long long val = (total + KB/2) / KB; // rounded
+        out = std::to_string(val) + "KB";
+    }
+
+    std::cout << "Total size of " << args[1] << ": " << out << std::endl;
+}
+
 void handleCommand(MiniFileExplorer &app, const std::vector<std::string> &args)
 {
     if (args.empty())
@@ -466,6 +515,8 @@ void handleCommand(MiniFileExplorer &app, const std::vector<std::string> &args)
         cmd_cp(args);
     else if (cmd == "mv")
         cmd_mv(args, app);
+    else if (cmd == "du")
+        cmd_du(app, args);
     else if (cmd == "stat")
         cmd_stat(args);
     else if (cmd == "search")
