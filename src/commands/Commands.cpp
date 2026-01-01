@@ -9,6 +9,7 @@
 #include <ctime>
 #include <sstream>
 #include <limits.h>
+#include <functional>
 
 // ----------------- Command Implementations -----------------
 
@@ -259,6 +260,64 @@ static void cmd_stat(const std::vector<std::string> &args)
     std::cout << "Access Time: " << fmt(st.st_atime) << std::endl;
 }
 
+static void cmd_search(MiniFileExplorer &app, const std::vector<std::string> &args)
+{
+    if (args.size() < 2)
+    {
+        std::cout << "Usage: search [keyword]" << std::endl;
+        return;
+    }
+
+    const std::string keyword = args[1];
+    // lowercase keyword for case-insensitive match
+    auto toLower = [](const std::string &s) {
+        std::string r = s;
+        for (auto &c : r) c = static_cast<char>(::tolower(c));
+        return r;
+    };
+
+    const std::string keyl = toLower(keyword);
+
+    std::vector<std::pair<std::string, bool>> results; // (path, isDir)
+
+    std::function<void(const std::string&)> dfs = [&](const std::string &base) {
+        auto entries = FileSystem::listDir(base);
+        for (auto &e : entries) {
+            std::string entryPath = base + "/" + e.name;
+
+            std::string nameL = toLower(e.name);
+            if (nameL.find(keyl) != std::string::npos) {
+                // resolve absolute path for display
+                char resolved[PATH_MAX];
+                std::string display;
+                if (::realpath(entryPath.c_str(), resolved)) display = resolved;
+                else display = entryPath;
+
+                if (e.isDir) display += "/";
+                results.emplace_back(display, e.isDir);
+            }
+
+            if (e.isDir) {
+                // recurse into subdirectory
+                dfs(entryPath);
+            }
+        }
+    };
+
+    std::string start = app.getCurrentDir();
+    dfs(start);
+
+    if (results.empty()) {
+        std::cout << "No results found for '" << keyword << "'" << std::endl;
+        return;
+    }
+
+    std::cout << "Search results for '" << keyword << "' (" << results.size() << " items):" << std::endl;
+    for (auto &r : results) {
+        std::cout << r.first << " (" << (r.second ? "Dir" : "File") << ")" << std::endl;
+    }
+}
+
 void handleCommand(MiniFileExplorer &app, const std::vector<std::string> &args)
 {
     if (args.empty())
@@ -284,6 +343,8 @@ void handleCommand(MiniFileExplorer &app, const std::vector<std::string> &args)
         cmd_rmdir(args);
     else if (cmd == "stat")
         cmd_stat(args);
+    else if (cmd == "search")
+    cmd_search(app, args);
     else
         std::cout << "Unknown command: " << cmd << "\n";
 }
