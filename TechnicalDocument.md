@@ -8,7 +8,6 @@ Project: MiniFileExplorer
 MiniFileExplorer/
 ├─ Makefile
 ├─ README.md
-├─ minifilesystem.md
 ├─ TechnicalDocument.md
 ├─ include/
 │  ├─ FileSystem.h

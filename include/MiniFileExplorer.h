@@ -6,6 +6,7 @@
 class MiniFileExplorer {
 public:
     MiniFileExplorer();
+    MiniFileExplorer(const std::string& startDir); 
     void run();
     void execute(const std::string& input);
 

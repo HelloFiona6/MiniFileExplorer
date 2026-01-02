@@ -13,12 +13,14 @@
 #include <filesystem>
 #include <system_error>
 #include <algorithm>
+#include <cstdlib>
 
 // ----------------- Command Implementations -----------------
 
 static void cmd_help()
 {
-    std::cout << "\n=== MiniFileExplorer Commands ===\n" << std::endl;
+    std::cout << "\n=== MiniFileExplorer Commands ===\n"
+              << std::endl;
     std::cout << "Core Commands:" << std::endl;
     std::cout << "  ls [options]       - List contents of current directory" << std::endl;
     std::cout << "                     - Options: -s (sort by size), -t (sort by time)" << std::endl;
@@ -84,18 +86,16 @@ static void cmd_cd(MiniFileExplorer &app, const std::vector<std::string> &args)
 
 static void cmd_ls(MiniFileExplorer &app, const std::vector<std::string> &args)
 {
-    /*
-    TODO:
-    显示路径
-    文件结构存储
-    */
     auto files = FileSystem::listDir(app.getCurrentDir());
 
     // determine mode: normal / -s (size) / -t (time)
     bool sortSize = false, sortTime = false;
-    if (args.size() > 1) {
-        if (args[1] == "-s") sortSize = true;
-        else if (args[1] == "-t") sortTime = true;
+    if (args.size() > 1)
+    {
+        if (args[1] == "-s")
+            sortSize = true;
+        else if (args[1] == "-t")
+            sortTime = true;
     }
 
     size_t nameWidth = 0;
@@ -103,40 +103,58 @@ static void cmd_ls(MiniFileExplorer &app, const std::vector<std::string> &args)
         nameWidth = std::max(nameWidth, f.name.size());
 
     // Prepare auxiliary data for sorting
-    struct Row { FileInfo info; unsigned long long compSize; std::time_t mtime_epoch; };
+    struct Row
+    {
+        FileInfo info;
+        unsigned long long compSize;
+        std::time_t mtime_epoch;
+    };
     std::vector<Row> rows;
     rows.reserve(files.size());
-    for (auto &f : files) {
-        Row r; r.info = f; r.compSize = 0; r.mtime_epoch = 0;
+    for (auto &f : files)
+    {
+        Row r;
+        r.info = f;
+        r.compSize = 0;
+        r.mtime_epoch = 0;
         std::string entryPath = app.getCurrentDir() + "/" + f.name;
-        if (sortSize) {
-            if (f.isDir) {
+        if (sortSize)
+        {
+            if (f.isDir)
+            {
                 r.compSize = FileSystem::calcDirSize(entryPath);
-            } else {
+            }
+            else
+            {
                 r.compSize = (f.size < 0) ? 0 : static_cast<unsigned long long>(f.size);
             }
         }
-        if (sortTime) {
+        if (sortTime)
+        {
             struct stat st{};
-            if (::stat(entryPath.c_str(), &st) == 0) r.mtime_epoch = st.st_mtime;
+            if (::stat(entryPath.c_str(), &st) == 0)
+                r.mtime_epoch = st.st_mtime;
         }
         rows.push_back(std::move(r));
     }
 
-    if (sortSize) {
-        std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b){
+    if (sortSize)
+    {
+        std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b)
+                  {
             // empty directories go last
             bool aEmptyDir = a.info.isDir && a.compSize == 0;
             bool bEmptyDir = b.info.isDir && b.compSize == 0;
             if (aEmptyDir != bEmptyDir) return !aEmptyDir; // non-empty (or file) first
             if (a.compSize != b.compSize) return a.compSize > b.compSize; // desc
-            return a.info.name < b.info.name;
-        });
-    } else if (sortTime) {
-        std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b){
+            return a.info.name < b.info.name; });
+    }
+    else if (sortTime)
+    {
+        std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b)
+                  {
             if (a.mtime_epoch != b.mtime_epoch) return a.mtime_epoch > b.mtime_epoch; // desc
-            return a.info.name < b.info.name;
-        });
+            return a.info.name < b.info.name; });
     }
 
     // Print header
@@ -148,20 +166,30 @@ static void cmd_ls(MiniFileExplorer &app, const std::vector<std::string> &args)
     // Separator
     std::cout << std::string(nameWidth + 2 + 8 + 10 + 20, '-') << "\n";
 
-    if (sortSize || sortTime) {
-        for (auto &r : rows) {
+    if (sortSize || sortTime)
+    {
+        for (auto &r : rows)
+        {
             auto &f = r.info;
             std::string name = f.name + (f.isDir ? "/" : "");
             std::string type = f.isDir ? "Dir" : "File";
             std::string size = "-";
-            if (sortSize) {
-                if (f.isDir) {
-                    if (r.compSize == 0) size = "-";
-                    else size = std::to_string(r.compSize);
-                } else {
+            if (sortSize)
+            {
+                if (f.isDir)
+                {
+                    if (r.compSize == 0)
+                        size = "-";
+                    else
+                        size = std::to_string(r.compSize);
+                }
+                else
+                {
                     size = std::to_string(f.size);
                 }
-            } else {
+            }
+            else
+            {
                 size = f.isDir ? "-" : std::to_string(f.size);
             }
 
@@ -170,7 +198,9 @@ static void cmd_ls(MiniFileExplorer &app, const std::vector<std::string> &args)
                       << std::setw(10) << size
                       << f.mtime << "\n";
         }
-    } else {
+    }
+    else
+    {
         for (auto &f : files)
         {
             std::string name = f.name + (f.isDir ? "/" : "");
@@ -232,9 +262,12 @@ static void cmd_rm(MiniFileExplorer &app, const std::vector<std::string> &args)
 
     fs::path inPath(args[1]);
     fs::path absPath;
-    if (inPath.is_absolute()) {
+    if (inPath.is_absolute())
+    {
         absPath = inPath;
-    } else {
+    }
+    else
+    {
         absPath = fs::path(app.getCurrentDir()) / inPath;
     }
     std::string absStr = absPath.string();
@@ -246,7 +279,8 @@ static void cmd_rm(MiniFileExplorer &app, const std::vector<std::string> &args)
     }
 
     // If the target is a directory, rm should not prompt: instruct to use rmdir
-    if (FileSystem::isDir(absStr)) {
+    if (FileSystem::isDir(absStr))
+    {
         std::cout << "Is a directory: " << args[1] << " (use rmdir to remove directories)" << std::endl;
         return;
     }
@@ -330,9 +364,11 @@ static void cmd_stat(const std::vector<std::string> &args)
 
     std::string size = is_dir ? "-" : std::to_string(static_cast<long long>(st.st_size));
 
-    auto fmt = [](time_t t) -> std::string {
+    auto fmt = [](time_t t) -> std::string
+    {
         std::tm tm{};
-        if (std::tm* p = std::localtime(&t)) tm = *p;
+        if (std::tm *p = std::localtime(&t))
+            tm = *p;
         std::ostringstream oss;
         oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
         return oss.str();
@@ -359,21 +395,23 @@ static void cmd_search(MiniFileExplorer &app, const std::vector<std::string> &ar
     std::vector<std::pair<std::string, bool>> results;
     FileSystem::search(app.getCurrentDir(), keyword, results);
 
-    if (results.empty()) {
+    if (results.empty())
+    {
         std::cout << "No results found for '" << keyword << "'" << std::endl;
         return;
     }
 
     std::cout << "Search results for '" << keyword << "' (" << results.size() << " items):" << std::endl;
-    for (auto &r : results) {
+    for (auto &r : results)
+    {
         std::cout << r.first << " (" << (r.second ? "Dir" : "File") << ")" << std::endl;
     }
 }
 
-
 static void cmd_cp(const std::vector<std::string> &args)
 {
-    if (args.size() < 3) {
+    if (args.size() < 3)
+    {
         std::cout << "Usage: cp [src] [dst]" << std::endl;
         return;
     }
@@ -382,42 +420,53 @@ static void cmd_cp(const std::vector<std::string> &args)
     fs::path src(args[1]);
     fs::path dst(args[2]);
 
-    if (!fs::exists(src)) {
+    if (!fs::exists(src))
+    {
         std::cout << "Source not found" << std::endl;
         return;
     }
 
-    if (!fs::is_regular_file(src)) {
+    if (!fs::is_regular_file(src))
+    {
         std::cout << "Source not found" << std::endl;
         return;
     }
 
-    if (fs::exists(dst) && fs::is_directory(dst)) {
+    if (fs::exists(dst) && fs::is_directory(dst))
+    {
         dst /= src.filename();
-    } else if (!dst.has_parent_path()) {
+    }
+    else if (!dst.has_parent_path())
+    {
         // relative in current dir is fine
-    } else if (!fs::exists(dst.parent_path())) {
+    }
+    else if (!fs::exists(dst.parent_path()))
+    {
         std::cout << "Invalid target path" << std::endl;
         return;
     }
 
     bool overwrite = false;
-    if (fs::exists(dst)) {
+    if (fs::exists(dst))
+    {
         std::cout << "File exists in target: Overwrite? (y/n)" << std::endl;
         std::string ans;
         std::getline(std::cin, ans);
-        if (ans != "y") return;
+        if (ans != "y")
+            return;
         overwrite = true;
     }
 
-    if (!FileSystem::copyFile(src.string(), dst.string(), overwrite)) {
+    if (!FileSystem::copyFile(src.string(), dst.string(), overwrite))
+    {
         std::cout << "Failed to copy" << std::endl;
     }
 }
 
 static void cmd_mv(const std::vector<std::string> &args, MiniFileExplorer &app)
 {
-    if (args.size() < 3) {
+    if (args.size() < 3)
+    {
         std::cout << "Usage: mv [src] [dst]" << std::endl;
         return;
     }
@@ -426,48 +475,72 @@ static void cmd_mv(const std::vector<std::string> &args, MiniFileExplorer &app)
     fs::path src(args[1]);
     fs::path dst(args[2]);
 
-    if (!fs::exists(src)) {
+    if (!fs::exists(src))
+    {
         std::cout << "Source not found" << std::endl;
         return;
     }
 
-    if (fs::exists(dst) && fs::is_directory(dst)) {
+    if (fs::exists(dst) && fs::is_directory(dst))
+    {
         dst /= src.filename();
-    } else if (dst.has_parent_path() && !fs::exists(dst.parent_path())) {
+    }
+    else if (dst.has_parent_path() && !fs::exists(dst.parent_path()))
+    {
         std::cout << "Invalid target path" << std::endl;
         return;
     }
 
+    // --- prevent self-move: src and dst refer to same file ---
+    char realSrc[PATH_MAX], realDst[PATH_MAX];
+    if (::realpath(src.c_str(), realSrc) && ::realpath(dst.c_str(), realDst))
+    {
+        if (std::string(realSrc) == std::string(realDst))
+        {
+            std::cout << "Source and destination are the same file" << std::endl;
+            return;
+        }
+    }
+
     bool overwrite = false;
-    if (fs::exists(dst)) {
+    if (fs::exists(dst))
+    {
         std::cout << "File exists in target: Overwrite? (y/n)" << std::endl;
         std::string ans;
         std::getline(std::cin, ans);
-        if (ans != "y") return;
+        if (ans != "y")
+            return;
         overwrite = true;
     }
 
-    if (!FileSystem::move(src.string(), dst.string(), overwrite)) {
+    if (!FileSystem::move(src.string(), dst.string(), overwrite))
+    {
         std::cout << "Failed to move" << std::endl;
         return;
     }
 
     // If moved a directory that is current dir, update app currentDir
-    try {
+    try
+    {
         char cwd[PATH_MAX];
         getcwd(cwd, sizeof(cwd));
         std::string cur = cwd;
-        if (cur.find(src.string()) == 0) {
+        if (cur.find(src.string()) == 0)
+        {
             char newcwd[PATH_MAX];
             if (::realpath(dst.string().c_str(), newcwd))
                 app.setCurrentDir(newcwd);
         }
-    } catch(...) {}
+    }
+    catch (...)
+    {
+    }
 }
 
 static void cmd_du(MiniFileExplorer &app, const std::vector<std::string> &args)
 {
-    if (args.size() < 2) {
+    if (args.size() < 2)
+    {
         std::cout << "Usage: du [dirname]" << std::endl;
         return;
     }
@@ -475,27 +548,38 @@ static void cmd_du(MiniFileExplorer &app, const std::vector<std::string> &args)
     namespace fs = std::filesystem;
     fs::path inPath(args[1]);
     fs::path dirPath;
-    if (inPath.is_absolute()) dirPath = inPath;
-    else dirPath = fs::path(app.getCurrentDir()) / inPath;
+    if (inPath.is_absolute())
+        dirPath = inPath;
+    else
+        dirPath = fs::path(app.getCurrentDir()) / inPath;
 
-    if (!fs::exists(dirPath) || !fs::is_directory(dirPath)) {
+    if (!fs::exists(dirPath) || !fs::is_directory(dirPath))
+    {
         std::cout << "Invalid target path" << std::endl;
         return;
     }
 
     unsigned long long total = 0;
-    try {
+    try
+    {
         for (auto it = fs::recursive_directory_iterator(dirPath, fs::directory_options::skip_permission_denied);
-             it != fs::recursive_directory_iterator(); ++it) {
-            try {
-                if (fs::is_regular_file(it->path())) {
+             it != fs::recursive_directory_iterator(); ++it)
+        {
+            try
+            {
+                if (fs::is_regular_file(it->path()))
+                {
                     total += fs::file_size(it->path());
                 }
-            } catch (...) {
+            }
+            catch (...)
+            {
                 // ignore files we can't stat
             }
         }
-    } catch (...) {
+    }
+    catch (...)
+    {
         std::cout << "Failed to calculate directory size" << std::endl;
         return;
     }
@@ -503,11 +587,14 @@ static void cmd_du(MiniFileExplorer &app, const std::vector<std::string> &args)
     std::string out;
     const unsigned long long MB = 1024ULL * 1024ULL;
     const unsigned long long KB = 1024ULL;
-    if (total >= MB) {
-        unsigned long long val = (total + MB/2) / MB; // rounded
+    if (total >= MB)
+    {
+        unsigned long long val = (total + MB / 2) / MB; // rounded
         out = std::to_string(val) + "MB";
-    } else {
-        unsigned long long val = (total + KB/2) / KB; // rounded
+    }
+    else
+    {
+        unsigned long long val = (total + KB / 2) / KB; // rounded
         out = std::to_string(val) + "KB";
     }
 
@@ -546,7 +633,7 @@ void handleCommand(MiniFileExplorer &app, const std::vector<std::string> &args)
     else if (cmd == "stat")
         cmd_stat(args);
     else if (cmd == "search")
-    cmd_search(app, args);
+        cmd_search(app, args);
     else
         std::cout << "Unknown command: " << cmd << "\n";
 }
