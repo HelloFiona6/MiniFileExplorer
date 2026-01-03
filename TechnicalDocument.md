@@ -159,6 +159,8 @@ rm src/r2.md
 mkdir mv_test
 touch mv_test/f1.txt
 mv mv_test mv_test_moved           # 移动/重命名目录（如果当前目录包含，验证 currentDir 更新逻辑）
+rm mv_test_moved/f1.txt
+rmdir mv_test_moved
 
 # du（目录大小）
 du .                               # 计算当前目录总大小，显示 KB/MB 单位
